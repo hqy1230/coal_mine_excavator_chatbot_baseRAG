@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <title>煤矿挖掘机智能客服 · v2</title>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --panel: #1a2332;
+      --text: #e8eef7;
+      --muted: #8b9bb4;
+      --accent: #3d9cf5;
+      --bubble-user: #243044;
+      --bubble-ai: #152028;
+      --ok: #3ecf8e;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: radial-gradient(1200px 600px at 20% -10%, #1e3a5f 0%, var(--bg) 55%);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    header {
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid #243044;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+    header h1 {
+      margin: 0;
+      font-size: 1.15rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+    main {
+      flex: 1;
+      max-width: 920px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 1rem 1rem 5.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+    .msg {
+      max-width: 92%;
+      padding: 0.75rem 1rem;
+      border-radius: 12px;
+      line-height: 1.55;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-size: 0.95rem;
+    }
+    .msg.user {
+      align-self: flex-end;
+      background: var(--bubble-user);
+      border: 1px solid #334155;
+    }
+    .msg.ai {
+      align-self: flex-start;
+      background: var(--bubble-ai);
+      border: 1px solid #1e293b;
+    }
+    .role-tag {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      margin-bottom: 0.35rem;
+    }
+    footer.input-bar {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      padding: 0.75rem 1rem 1rem;
+      background: linear-gradient(transparent, rgba(15,20,25,0.96));
+    }
+    .input-wrap {
+      max-width: 920px;
+      margin: 0 auto;
+      display: flex;
+      gap: 0.5rem;
+    }
+    textarea {
+      flex: 1;
+      resize: none;
+      min-height: 48px;
+      max-height: 160px;
+      padding: 0.65rem 0.85rem;
+      border-radius: 10px;
+      border: 1px solid #334155;
+      background: var(--panel);
+      color: var(--text);
+      font-size: 0.95rem;
+      outline: none;
+    }
+    textarea:focus {
+      border-color: var(--accent);
+    }
+    button.send {
+      padding: 0 1.25rem;
+      border-radius: 10px;
+      border: none;
+      background: var(--accent);
+      color: #0b1220;
+      font-weight: 600;
+      cursor: pointer;
+      min-width: 88px;
+    }
+    button.send:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+    .status {
+      max-width: 920px;
+      margin: 0 auto 0.35rem;
+      font-size: 0.8rem;
+      color: var(--muted);
+      min-height: 1.2em;
+    }
+    .pill {
+      display: inline-block;
+      padding: 0.15rem 0.45rem;
+      border-radius: 999px;
+      background: #1e293b;
+      font-size: 0.72rem;
+      margin-left: 0.35rem;
+      color: var(--ok);
+    }
+    .typing-indicator {
+      display: inline-flex;
+      gap: 4px;
+      padding-left: 4px;
+    }
+    .typing-indicator span {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      animation: typing 1.4s infinite ease-in-out;
+    }
+    .typing-indicator span:nth-child(1) { animation-delay: 0s; }
+    .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+    .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes typing {
+      0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+      40% { transform: scale(1); opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>煤矿挖掘机 · 智能客服 <span class="pill" title="若仍像旧版，请硬刷新 Ctrl+F5 并确认本行可见">v2</span></h1>
+  </header>
+  <main id="thread"></main>
+  <div class="status" id="status"></div>
+  <footer class="input-bar">
+    <div class="input-wrap">
+      <textarea id="q" rows="2" placeholder="例如：露天煤矿适合哪种挖掘机？液压系统故障如何排查？"></textarea>
+      <button class="send" id="send">发送</button>
+    </div>
+  </footer>
+  <script>
+    const thread = document.getElementById("thread");
+    const status = document.getElementById("status");
+    const q = document.getElementById("q");
+    const send = document.getElementById("send");
+
+    function addBubble(role, text, isStreaming = false) {
+      let wrap = null;
+      if (isStreaming) {
+        const bubbles = thread.querySelectorAll('.msg.ai');
+        if (bubbles.length > 0) {
+          wrap = bubbles[bubbles.length - 1];
+        }
+      }
+      if (!wrap) {
+        wrap = document.createElement("div");
+        wrap.className = "msg " + (role === "user" ? "user" : "ai");
+        const tag = document.createElement("div");
+        tag.className = "role-tag";
+        tag.textContent = role === "user" ? "你" : "客服";
+        const body = document.createElement("div");
+        body.textContent = text;
+        wrap.appendChild(tag);
+        wrap.appendChild(body);
+        thread.appendChild(wrap);
+      } else {
+        const body = wrap.querySelector('div:last-child');
+        body.textContent = text;
+      }
+      thread.scrollTop = thread.scrollHeight;
+    }
+
+    function addTypingIndicator() {
+      const wrap = document.createElement("div");
+      wrap.className = "msg ai";
+      const tag = document.createElement("div");
+      tag.className = "role-tag";
+      tag.textContent = "客服";
+      const indicator = document.createElement("div");
+      indicator.className = "typing-indicator";
+      indicator.innerHTML = '<span></span><span></span><span></span>';
+      wrap.appendChild(tag);
+      wrap.appendChild(indicator);
+      thread.appendChild(wrap);
+      thread.scrollTop = thread.scrollHeight;
+      return wrap;
+    }
+
+    function removeTypingIndicator(wrap) {
+      if (wrap && wrap.querySelector('.typing-indicator')) {
+        const body = document.createElement("div");
+        body.textContent = "";
+        wrap.replaceChild(body, wrap.querySelector('.typing-indicator'));
+      }
+    }
+
+    async function doSend() {
+      const text = q.value.trim();
+      if (!text) return;
+      send.disabled = true;
+      status.textContent = "思考中…";
+      addBubble("user", text);
+      q.value = "";
+      
+      let aiContent = "";
+      let typingWrap = addTypingIndicator();
+
+      try {
+        const res = await fetch("/api/chat/stream", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            message: text,
+            enable_sft: true,
+            enable_rl: true,
+          }),
+        });
+
+        if (!res.ok) {
+          const raw = await res.text();
+          let msg = "请求失败";
+          try {
+            const d = JSON.parse(raw).detail;
+            msg = (d && d.error) || raw;
+          } catch {
+            msg = raw;
+          }
+          throw new Error(msg);
+        }
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder('utf-8');
+        
+        removeTypingIndicator(typingWrap);
+        
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          
+          const chunk = decoder.decode(value, { stream: true });
+          const lines = chunk.split('\n');
+          
+          for (const line of lines) {
+            if (!line.trim()) continue;
+            if (line.startsWith('data: ')) {
+              const dataStr = line.slice(6);
+              try {
+                const data = JSON.parse(dataStr);
+                if (data.type === 'chunk') {
+                  aiContent += data.content;
+                  addBubble("ai", aiContent, true);
+                } else if (data.type === 'done') {
+                  break;
+                }
+              } catch (e) {
+                console.error('解析流数据失败:', e);
+              }
+            }
+          }
+        }
+
+        status.textContent = "就绪";
+      } catch (e) {
+        status.textContent = "错误：" + e.message;
+        if (typingWrap) {
+          removeTypingIndicator(typingWrap);
+          addBubble("ai", "抱歉，回答失败：" + e.message);
+        }
+      } finally {
+        send.disabled = false;
+      }
+    }
+
+    send.addEventListener("click", doSend);
+    q.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        doSend();
+      }
+    });
+
+    (async function checkHealth() {
+      try {
+        const res = await fetch("/api/health", { cache: "no-store" });
+        const raw = await res.text();
+        let data;
+        try { data = JSON.parse(raw); } catch { return; }
+        if (!data.ok && data.hint) {
+          status.textContent = "自检：" + data.hint;
+        }
+      } catch (_) { /* ignore */ }
+    })();
+  </script>
+</body>
+</html>

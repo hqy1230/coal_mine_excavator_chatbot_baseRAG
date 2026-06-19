@@ -1,0 +1,4 @@
+2026-06-19 13:56:47 - agent - INFO - rag_service.py:37 - [RAG] SFT store preloaded
+2026-06-19 13:56:47 - agent - INFO - rag_service.py:45 - [RAG] RL policy preloaded
+2026-06-19 14:02:07 - agent - INFO - rag_service.py:37 - [RAG] SFT store preloaded
+2026-06-19 14:02:07 - agent - INFO - rag_service.py:45 - [RAG] RL policy preloaded
